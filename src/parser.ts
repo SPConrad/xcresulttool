@@ -17,7 +17,7 @@ export class Parser {
   }
 
   async exportObject(reference: string, outputPath: string): Promise<Buffer> {
-    const args = [
+    let args = [
       'xcresulttool',
       'export',
       '--type',
@@ -29,6 +29,9 @@ export class Parser {
       '--id',
       reference
     ]
+    if (await this.requiresLegacyFlag()) {
+      args.splice(2, 0, "--legacy")
+    }
     const options = {
       silent: true
     }
@@ -54,8 +57,23 @@ export class Parser {
     return output
   }
 
+  private async requiresLegacyFlag(): Promise<boolean> {
+    let output = ''
+    const options = {
+      silent: true,
+      listeners: {
+        stdout: (data: Buffer) => {
+          output += data.toString()
+        }
+      }
+    }
+    await exec.exec('xcrun', ['xcresulttool', 'version'], options)
+    const version = parseFloat(output.split(/[ ,]+/)[2])
+    return version > 23000
+  }
+
   private async toJSON(reference?: string): Promise<string> {
-    const args = [
+    let args = [
       'xcresulttool',
       'get',
       '--path',
@@ -63,6 +81,9 @@ export class Parser {
       '--format',
       'json'
     ]
+    if (await this.requiresLegacyFlag()) {
+      args.splice(2, 0, "--legacy")
+    }
     if (reference) {
       args.push('--id')
       args.push(reference)
