@@ -47,7 +47,24 @@ async function run(): Promise<void> {
     })
 
     if (core.getInput('token')) {
-      await core.summary.addRaw(report.reportSummary).write()
+      const byteLengthLimit = 65535
+      let reportTitle = trimToByteLength(
+        'summary',
+        core.getInput('title'),
+        byteLengthLimit
+      )
+      let reportSummary = trimToByteLength(
+        'summary',
+        report.reportSummary,
+        byteLengthLimit
+      )
+      let reportDetail = trimToByteLength(
+        'text',
+        report.reportDetail,
+        byteLengthLimit
+      )
+
+      await core.summary.addRaw(reportSummary).write()
 
       const octokit = new Octokit()
 
@@ -56,29 +73,6 @@ async function run(): Promise<void> {
 
       const pr = github.context.payload.pull_request
       const sha = (pr && pr.head.sha) || github.context.sha
-
-      const charactersLimit = 65535
-      let title = core.getInput('title')
-      if (title.length > charactersLimit) {
-        core.warning(
-          `The 'title' will be truncated because the character limit (${charactersLimit}) exceeded.`
-        )
-        title = title.substring(0, charactersLimit)
-      }
-      let reportSummary = report.reportSummary
-      if (reportSummary.length > charactersLimit) {
-        core.warning(
-          `The 'summary' will be truncated because the character limit (${charactersLimit}) exceeded.`
-        )
-        reportSummary = reportSummary.substring(0, charactersLimit)
-      }
-      let reportDetail = report.reportDetail
-      if (reportDetail.length > charactersLimit) {
-        core.warning(
-          `The 'text' will be truncated because the character limit (${charactersLimit}) exceeded.`
-        )
-        reportDetail = reportDetail.substring(0, charactersLimit)
-      }
 
       if (report.annotations.length > 50) {
         core.warning(
@@ -104,7 +98,7 @@ async function run(): Promise<void> {
       await octokit.checks.create({
         owner,
         repo,
-        name: title,
+        name: reportTitle,
         head_sha: sha,
         status: 'completed',
         conclusion: report.testStatus,
@@ -165,4 +159,27 @@ async function mergeResultBundle(
   }
 
   await exec.exec('xcrun', args, options)
+}
+
+function trimToByteLength(
+  name: string,
+  str: string,
+  byteLength: number
+): string {
+  const buf = Buffer.from(str, 'utf8')
+  if (buf.length <= byteLength) {
+    return str
+  }
+
+  let trimmed = str.slice(0, byteLength)
+  while (Buffer.byteLength(trimmed, 'utf8') > byteLength) {
+    trimmed = trimmed.slice(0, -1)
+  }
+  if (trimmed.length < str.length) {
+    core.warning(
+      `The '${name}' will be truncated because it exceeded the maximum length ${byteLength}.`
+    )
+  }
+
+  return trimmed
 }
