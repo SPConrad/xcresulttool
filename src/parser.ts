@@ -30,7 +30,7 @@ export class Parser {
       reference
     ]
     if (await this.requiresLegacyFlag()) {
-      args.splice(2, 0, "--legacy")
+      args.splice(2, 0, '--legacy')
     }
     const options = {
       silent: true
@@ -82,7 +82,7 @@ export class Parser {
       'json'
     ]
     if (await this.requiresLegacyFlag()) {
-      args.splice(2, 0, "--legacy")
+      args.splice(2, 0, '--legacy')
     }
     if (reference) {
       args.push('--id')
